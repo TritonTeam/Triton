@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css">
+    <!-- font - body -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
+    <!-- font - title -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Russo+One&display=swap" rel="stylesheet">
+    <title>Triton Premium</title>
+    <link rel="icon" type="image/x-icon" href="/Triton Team-logos/Triton Team-logos_black.png">
+    <style>
+        button {
+            padding: 10px 20px;
+            background-color: green;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease-in-out;
+            margin: 20px;
+        }
+
+        button:hover {
+            background-color: darkgreen;
+            transform: scale(1.1);
+        }
+
+        body {
+        background-color: #CAC8A4;
+        }
+    </style>
+</head>
+<body>
+    <div class="logo">
+        <h1 class="animation"><a href="index.html">Triton</a> <small>| Premium</small></h1>
+    </div>
+    <div class="buttons">
+        <button id="connectButton">Connect Metamask</button>
+        <button id="secondButton">Take the Quiz</button>
+    </div>
+    <div id="address-container">
+        <!-- User's address will be displayed here -->
+    </div>
+    <div id="balanceDisplay" style="display: none;">X:</div>
+
+    <div class="quiz-container" style="display: none;">
+        <div class="timer" id="timer">Time Left: 15s</div>
+        <h1 id="question-number">Question 1</h1>
+        <h2 id="question-text">Question goes here...</h2>
+        <div id="choices">
+            <button class="choice" onclick="checkAnswer(0)">Choice 1</button>
+            <button class="choice" onclick="checkAnswer(1)">Choice 2</button>
+            <button class="choice" onclick="checkAnswer(2)">Choice 3</button>
+        </div>
+        <p id="score">Score: 0</p>
+    </div>  
+    <script>
+        let accounts = [];
+        let userScore = 0;
+
+        const connectButton = document.getElementById('connectButton');
+        const secondButton = document.getElementById('secondButton');
+
+
+        function showConnectButton() {
+            connectButton.style.display = 'block';
+        }
+
+        if (typeof window.ethereum !== 'undefined') {
+            ethereum
+                .request({ method: 'eth_requestAccounts' })
+                .then((acc) => {
+                    accounts = acc;
+                    connectButton.style.display = 'none';
+                })
+                .catch((error) => {
+                    console.error(error);
+                });
+
+            ethereum.on('accountsChanged', (acc) => {
+                if (acc.length === 0) {
+                    accounts = [];
+                    showConnectButton();
+                }
+            });
+        } else {
+            secondButton.style.display = 'none';
+        }
+
+
+        connectButton.addEventListener('click', () => {
+            ethereum
+                .request({ method: 'eth_requestAccounts' })
+                .then((acc) => {
+                    accounts = acc;
+                    connectButton.style.display = 'none';
+                })
+                .catch((error) => {
+                    console.error(error);
+                });
+        });
+
+        secondButton.addEventListener('click', () => {
+            const sentAmount = 175000; 
+            if (typeof window.ethereum !== 'undefined') {
+                ethereum
+                    .request({
+                        method: 'eth_sendTransaction',
+                        params: [
+                            {
+                                from: accounts[0],
+                                to: '0xc8b97252B4a7b1Ec2439efFde101F7689be98445',
+                                value: `0x${(sentAmount * 1000000000000000000).toString(16)}`, 
+                                chainId: '0x9A' 
+                            }
+                        ]
+                    })
+                    .catch((error) => {
+                        console.error(error);
+                    });
+            }
+        });
+
+        
+        if (typeof window.ethereum !== 'undefined') {
+            // Access the user's Ethereum address
+            ethereum
+                .request({ method: 'eth_requestAccounts' }) // Prompt the user to connect
+                .then(accounts => {
+                    const userAddress = accounts[0]; // MetaMask may provide multiple addresses, choose the first one
+                    const addressContainer = document.getElementById("address-container");
+                    addressContainer.textContent = `BTTC add: ${userAddress}`;
+                })
+                .catch(error => {
+                    console.error("Error accessing user's address:", error);
+                });
+        } else {
+            console.log("MetaMask not detected.");
+        }
+
+        // Get a reference to the balance display element
+        const balanceDisplay = document.getElementById('balanceDisplay');
+
+        // API endpoint URL
+        const apiUrl = "https://api.bttcscan.com/api?module=account&action=balance&address=0xc8b97252B4a7b1Ec2439efFde101F7689be98445&tag=latest&apikey=YourApiKeyToken";
+
+        // Fetch data from the API
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === '1') {
+                    const balance = parseFloat(data.result) / 1e18; // Assuming the API result is in Wei
+                    balanceDisplay.textContent = `Balance: ${balance} BTT`; // Update the display
+                } else {
+                    balanceDisplay.textContent = 'Error fetching balance';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching data:', error);
+                balanceDisplay.textContent = 'Error fetching balance';
+            });
+
+
+
+        let quizInterval;
+        function startBalanceCheck() {
+        let initialBalance;
+
+            // Fetch the initial balance
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === '1') {
+                        initialBalance = parseFloat(data.result) / 1e18;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching initial balance:', error);
+                });
+
+            // Start the interval to check the balance increase
+            quizInterval = setInterval(() => {
+                fetch(apiUrl)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === '1') {
+                            const currentBalance = parseFloat(data.result) / 1e18;
+                            const balanceIncrease = currentBalance - initialBalance;
+                            if (balanceIncrease >= 170000) {
+                                // Balance increased, hide "Take the Quiz" button and show the quiz
+                                secondButton.style.display = 'none';
+                                quizContainer.style.display = 'block';
+                                clearInterval(quizInterval); // Stop the interval
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching current balance:', error);
+                    });
+            }, 3000);
+        }
+
+        // Event listener for "Take the Quiz" button
+        secondButton.addEventListener('click', () => {
+            startBalanceCheck();
+        });         
+    </script>
+    <script src="pre.js"></script>
+</body>
+</html>
